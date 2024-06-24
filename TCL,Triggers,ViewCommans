@@ -1,0 +1,77 @@
+CREATE DATABASE bookstore;
+USE bookstore;
+
+CREATE TABLE Customers (
+    customer_id INT PRIMARY KEY,
+    name VARCHAR(50),
+    email VARCHAR(100),
+    address VARCHAR(200)
+);
+
+CREATE TABLE Books (
+    book_id INT PRIMARY KEY,
+    title VARCHAR(100),
+    author VARCHAR(100),
+    price DECIMAL(10, 2),
+    stock_quantity INT DEFAULT 0
+);
+
+CREATE TABLE Orders (
+    order_id INT PRIMARY KEY,
+    customer_id INT,
+    order_date DATE,
+    total_amount DECIMAL(10, 2),
+    CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES Customers(customer_id)
+);
+
+CREATE TABLE OrderItems (
+    order_item_id INT PRIMARY KEY,
+    order_id INT,
+    book_id INT,
+    quantity INT,
+    CONSTRAINT fk_order FOREIGN KEY (order_id) REFERENCES Orders(order_id),
+    CONSTRAINT fk_book FOREIGN KEY (book_id) REFERENCES Books(book_id)
+);
+
+BEGIN;
+
+INSERT INTO Customers (customer_id, name, email, address) VALUES
+(1, 'Alice Brown', 'alicebrown@example.com', '123 Maple St'),
+(2, 'Charlie Davis', 'charliedavis@example.com', '456 Pine St'),
+(3, 'Eve White', 'evewhite@example.com', '789 Cedar St');
+
+INSERT INTO Books (book_id, title, author, price, stock_quantity) VALUES
+(201, 'The Great Gatsby', 'F. Scott Fitzgerald', 10.99, 30),
+(202, '1984', 'George Orwell', 15.99, 20),
+(203, 'To Kill a Mockingbird', 'Harper Lee', 12.99, 25);
+
+COMMIT;
+
+DELIMITER //
+CREATE TRIGGER UpdateStockQuantity
+AFTER INSERT ON OrderItems
+FOR EACH ROW
+BEGIN
+    DECLARE new_stock_quantity INT;
+    SELECT stock_quantity - NEW.quantity INTO new_stock_quantity FROM Books WHERE book_id = NEW.book_id;
+    UPDATE Books SET stock_quantity = new_stock_quantity WHERE book_id = NEW.book_id;
+END //
+DELIMITER ;
+
+INSERT INTO Orders (order_id, customer_id, order_date, total_amount) VALUES
+(1, 2, '2024-02-20', 31.98);
+
+INSERT INTO OrderItems (order_item_id, order_id, book_id, quantity) VALUES
+(1, 1, 201, 1),
+(2, 1, 202, 1);
+
+SELECT * FROM Books;
+
+CREATE VIEW CustomerOrderView AS
+SELECT C.name AS customer_name, C.email, O.order_date, B.title AS book_title, OI.quantity
+FROM Customers C
+JOIN Orders O ON C.customer_id = O.customer_id
+JOIN OrderItems OI ON O.order_id = OI.order_id
+JOIN Books B ON OI.book_id = B.book_id;
+
+SELECT * FROM CustomerOrderView;
